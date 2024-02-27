@@ -14,7 +14,9 @@ const far = 1000;
 const camera = new THREE.PerspectiveCamera(125, aspect, near, far);
 
 camera.position.set(-10, 20, 10);
-camera.lookAt(0, 5, 0);
+// const lookAtPoint = new THREE.Vector3(0, 5, 0);
+camera.lookAt(0, 10, 0);
+// camera.updateProjectionMatrix();
 
 //RENDERER
 const renderer = new THREE.WebGLRenderer();
@@ -73,7 +75,7 @@ gui.add(options, "cube_y", -5, 20).onChange((e) => {
 gui.add(options, "camera_x", -20, 20).onChange((e) => {
     camera.position.x = e;
 })
-gui.add(options, "camera_y", -20, 20).onChange((e) => {
+gui.add(options, "camera_y", -20, 50).onChange((e) => {
     camera.position.y = e;
 })
 gui.add(options, "camera_z", -20, 20).onChange((e) => {
