@@ -54,6 +54,7 @@ checker_texture.magFilter = THREE.NearestFilter;
 //GUI
 const gui = new dat.GUI;
 const options = {
+
     sphere_color: 0xffffff,
     sphere_size: 2,
     sphere_x: 0,
@@ -61,6 +62,7 @@ const options = {
     wireframe: false,
     speed: 0.01,
     cube_y: 10,
+    camera_movement: false,
     camera_x: -10,
     camera_y: 20,
     camera_z: 10,
@@ -87,6 +89,7 @@ gui.add(options, "cube_y", -5, 20).onChange((e) => {
     cube.position.y = e;
     edges.position.y = e;
 })
+gui.add(options, "camera_movement");
 gui.add(options, "camera_x", -20, 20).onChange((e) => {
     camera.position.x = e;
 })
@@ -110,7 +113,7 @@ orbit.update();
 
 //CUBE
 const cube_geometry = new THREE.BoxGeometry(2, 2, 2);
-const material = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 1, emissive:true });
+const material = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 1, emissive: true });
 const cube = new THREE.Mesh(cube_geometry, material);
 cube.position.y = 10;
 cube.castShadow = true;
@@ -126,20 +129,20 @@ const light_in_cube_helper = new THREE.PointLightHelper(light_in_cube);
 scene.add(light_in_cube_helper);
 
 // function bloom() {
-    const renderScene = new RenderPass(scene, camera);
-    const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        1.5, // strength
-        0.4, // radius
-        0.85 // threshold
-    );
-    bloomPass.threshold = 0;
-    bloomPass.strength = 2;
-    bloomPass.radius = 0.5;
+const renderScene = new RenderPass(scene, camera);
+const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    1.5, // strength
+    0.4, // radius
+    0.85 // threshold
+);
+bloomPass.threshold = 0;
+bloomPass.strength = 2;
+bloomPass.radius = 0.5;
 
-    const composer = new EffectComposer(renderer);
-    composer.addPass(renderScene);
-    composer.addPass(bloomPass);
+const composer = new EffectComposer(renderer);
+composer.addPass(renderScene);
+composer.addPass(bloomPass);
 // }
 // bloom();
 
@@ -203,11 +206,11 @@ loader.load('monkey.glb', function (gltf) {
 });
 
 //AMBIENT LIGHT
-const ambient_light = new THREE.AmbientLight(0xff00dd);
+const ambient_light = new THREE.AmbientLight(0x0000ff);
 scene.add(ambient_light);
 
 //DIRECTIONAL LIGHT
-const directional_light = new THREE.DirectionalLight(0xffffff, 0.8);
+const directional_light = new THREE.DirectionalLight(0xff00dd, 1.5);
 scene.add(directional_light);
 directional_light.position.set(-30, 50, 0);
 directional_light.castShadow = true;
@@ -243,9 +246,12 @@ function animate() {
     step += options.speed;
     sphere.position.z = (10 * Math.abs(Math.sin(step)) - 8);
 
-    camera_look_at.set(sphere.position.x, sphere.position.y, sphere.position.z);
-    camera.lookAt(camera_look_at);
-    camera.updateMatrix;
+    if (options.camera_movement) {
+        camera_look_at.set(sphere.position.x, sphere.position.y - 10, sphere.position.z);
+        camera.lookAt(camera_look_at);
+        camera.updateMatrix;
+    }
+
 
     raycaster.setFromCamera(pointer, camera);
 
