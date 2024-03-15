@@ -1,11 +1,15 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass";
 import * as dat from 'dat.gui';
 
 //SCENE
 const scene = new THREE.Scene();
-scene.add(new THREE.GridHelper());
+// const grid = new THREE.GridHelper()
+// scene.add(grid);
 
 //CAMERA
 const aspect = window.innerWidth / window.innerHeight;
@@ -14,9 +18,6 @@ const far = 1000;
 const camera = new THREE.PerspectiveCamera(125, aspect, near, far);
 
 camera.position.set(-10, 20, 10);
-// const lookAtPoint = new THREE.Vector3(0, 5, 0);
-camera.lookAt(0, 10, 0);
-// camera.updateProjectionMatrix();
 
 //RENDERER
 const renderer = new THREE.WebGLRenderer();
@@ -31,9 +32,24 @@ window.addEventListener("resize", () => {
     camera.updateProjectionMatrix();
 })
 
+//RAYCASTER
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+function onPointerMove(event) {
+    // calculate pointer position in normalized device coordinates
+    // (-1 to +1) for both components
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+}
+
+
+
 //TEXTURE LOADER
 const texture_loader = new THREE.TextureLoader();
-const checker_texture = texture_loader.load("checker1.png");
+const checker_texture = texture_loader.load("checker2.png");
+checker_texture.minFilter = THREE.NearestFilter;
+checker_texture.magFilter = THREE.NearestFilter;
 
 //GUI
 const gui = new dat.GUI;
@@ -60,7 +76,6 @@ gui.add(options, "wireframe").onChange((e) => {
 gui.add(options, "speed", 0, 0.1);
 gui.add(options, "sphere_size", 0, 3.5).onChange((e) => {
     sphere.scale.set(e, e, e);
-    console.log(sphere.scale);
 });
 gui.add(options, "sphere_x", -20, 20).onChange((e) => {
     sphere.position.x = e;
@@ -90,19 +105,43 @@ gui.add(options, "fov", 1, 180, 5).onChange((e) => {
 
 //ORBIT
 const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.target.set(0, 5, 0);
 orbit.update();
-
-
-
-
 
 //CUBE
 const cube_geometry = new THREE.BoxGeometry(2, 2, 2);
-const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const material = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 1, emissive:true });
 const cube = new THREE.Mesh(cube_geometry, material);
 cube.position.y = 10;
 cube.castShadow = true;
 scene.add(cube);
+
+//LIGHT IN THE CUBE
+const light_in_cube = new THREE.PointLight(0x0000ff, 100, 100);
+light_in_cube.position.set(0, 10, 0);
+// light_in_cube.castShadow = true;
+scene.add(light_in_cube);
+
+const light_in_cube_helper = new THREE.PointLightHelper(light_in_cube);
+scene.add(light_in_cube_helper);
+
+// function bloom() {
+    const renderScene = new RenderPass(scene, camera);
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        1.5, // strength
+        0.4, // radius
+        0.85 // threshold
+    );
+    bloomPass.threshold = 0;
+    bloomPass.strength = 2;
+    bloomPass.radius = 0.5;
+
+    const composer = new EffectComposer(renderer);
+    composer.addPass(renderScene);
+    composer.addPass(bloomPass);
+// }
+// bloom();
 
 //EDGES
 const edges_geometry = new THREE.EdgesGeometry(cube_geometry);
@@ -178,10 +217,10 @@ directional_light.shadow.camera.left = -10;
 directional_light.shadow.camera.right = 10;
 
 const directional_light_helper = new THREE.DirectionalLightHelper(directional_light, 5);
-scene.add(directional_light_helper);
+// scene.add(directional_light_helper);
 
 const directional_light_shadow_helper = new THREE.CameraHelper(directional_light.shadow.camera);
-scene.add(directional_light_shadow_helper);
+// scene.add(directional_light_shadow_helper);
 
 
 
@@ -189,14 +228,50 @@ scene.add(directional_light_shadow_helper);
 let step = 0;
 console.log(camera.fov);
 
+let camera_look_at = new THREE.Vector3;
+
 function animate() {
     requestAnimationFrame(animate);
+
     cube.rotation.x += 0.01;
     cube.rotation.y += 0.01;
     edges.rotation.x -= 0.01;
     edges.rotation.y -= 0.01;
+
+    composer.render();
+
     step += options.speed;
     sphere.position.z = (10 * Math.abs(Math.sin(step)) - 8);
+
+    camera_look_at.set(sphere.position.x, sphere.position.y, sphere.position.z);
+    camera.lookAt(camera_look_at);
+    camera.updateMatrix;
+
+    raycaster.setFromCamera(pointer, camera);
+
+    function turn_red_on_mouseover() {
+        scene.traverse(obj => {
+            if (obj.isMesh || obj == edges) {
+                obj.material.color.set(0xffffff); // Reset color
+            }
+        });
+
+        const intersects = raycaster.intersectObjects(scene.children);
+
+        if (intersects.length > 0) {
+            const closestIntersectedObject = intersects[0].object;
+            if (closestIntersectedObject.isMesh && closestIntersectedObject != edges) {
+                closestIntersectedObject.material.color.set(0xff0000); // Change color to red
+            }
+            if (closestIntersectedObject === cube || closestIntersectedObject === edges) {
+                cube.material.color.set(0xff00000);
+                edges.material.color.set(0xff0000);
+            }
+        }
+
+    }
     renderer.render(scene, camera);
 }
 animate();
+
+window.addEventListener('pointermove', onPointerMove);
